@@ -1,6 +1,7 @@
 package MyRobots;
 import robocode.*;
 import java.awt.geom.Point2D;
+ import java.awt.Color;
 
 public class ARobot extends AdvancedRobot{
 	private EnemyBot enemy = new EnemyBot();
@@ -11,6 +12,7 @@ public class ARobot extends AdvancedRobot{
 
 	public void run()
 	{
+		setAllColors(Color.RED);
 		addCustomEvent(new Condition("too_close_to_walls") {
 			public boolean test() {
 				return (
@@ -37,7 +39,14 @@ public class ARobot extends AdvancedRobot{
 
 	public void radar()
 	{
-		setTurnRadarRight(360);
+		if(enemy.none())
+			setTurnRadarRight(360);
+		else{
+			double turn = getHeading() - getRadarHeading() + enemy.getBearing();
+			turn += 30 * radarDirection;
+			setTurnRadarRight(normalizeBearing(turn));
+			radarDirection *= -1;
+		}
 	}
 
 	public void tank ()
