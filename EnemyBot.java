@@ -85,6 +85,11 @@ public class EnemyBot {
   public double gety(){
     return y;
   }
+
+  public void setName(String name)
+  {
+    this.name = name;
+  }
   //Implement a state-change method called update which takes a ScannedRobotEvent as a parameter.
   //Call the ScannedRobotEvent's methods (same names as the ones in step #3). 
   //to set your private variables (step #2). 
