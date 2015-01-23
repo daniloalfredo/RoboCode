@@ -93,18 +93,13 @@ public class TeamLeader extends TeamRobot{
 				return;
 
 		String message = null;
-		for( int i = 0; i<4 ; i++)
+		try{
+			message = String.format(Locale.US, "%f@%f@%f@%f", enemy.getx(), enemy.gety(), enemy.getHeading(), enemy.getVelocity());
+			System.out.println(message);
+			broadcastMessage(message);
+		}catch(IOException ev)
 		{
-			//double dist = Point2D.distance(droids[i].getx(), droids[i].gety(), enemy.getx(), enemy.gety());
-			//Pair par = calcTiro(dist, droids[i].getx(), droids[i].gety());
-			try{
-				message = String.format(Locale.US, "%f@%f@%f@%f", enemy.getx(), enemy.gety(), enemy.getHeading(), enemy.getVelocity());
-				System.out.println(message);
-				sendMessage(droids[i].getName(), message);
-			}catch(IOException ev)
-			{
-				System.out.println("Message not sent");
-			}
+			System.out.println("Message not sent");
 		}
 
 		// turn the gun to the predicted x,y location
@@ -223,6 +218,14 @@ public class TeamLeader extends TeamRobot{
 			}
 		}
 	}
+
+	public void onHitByBullet(HitByBulletEvent e)
+	{
+		setTurnRight(e.getBearing() + 90);
+		setAhead(100);
+		execute();
+	}
+
 	public void onHitRobot(HitRobotEvent e) { tooCloseToWall = 0; }
 
 	public double absoluteBearing(double x1, double y1, double x2, double y2) {

@@ -62,11 +62,12 @@ public class Dummy extends TeamRobot implements Droid
 		enemyDistance = Point2D.distance(getX(), getY(), enemyX, enemyY);
 		Pair par = calcTiro(enemyDistance, getX(), getY());
 		enemyBearing = par.getabsDeg();
+		setTurnRight(normalizeBearing(enemyBearing));
 		firePower = par.getFirePower();
 		if(enemyBearing > 0)
 		{
 			setTurnGunRight(normalizeBearing(enemyBearing - getGunHeading()));
-			if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10 && enemyDistance < 1000/3)
+			if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10)
 				setFire(firePower);
 		}
 		else
@@ -80,12 +81,13 @@ public class Dummy extends TeamRobot implements Droid
 	}
 	public void doTank1()
 	{
-		//setTurnRight(normalizeBearing(enemyBearing + 90 - (15 * moveDirection)));
-		if(!lockon)
+		/*if(lockon){
 			setTurnRight(enemyBearing);
+			lockon = false;
+		}*/
 		
 		if (enemyDistance > 200)
-			setAhead(enemyDistance / 3);
+			setAhead(enemyDistance / 2);
 		// but not too close
 		if (enemyDistance < 100)
 			setBack(enemyDistance);
@@ -105,6 +107,10 @@ public class Dummy extends TeamRobot implements Droid
 	{
 		setTurnRight(90);
 		setAhead(100);
+		if (getTime() % 20 == 0) {
+			moveDirection *= -1;
+			setAhead(150 * moveDirection);
+		}
 		/*double moveAmount = Math.max(getBattleFieldWidth(), getBattleFieldHeight());
 		if(goToWall){
 			turnLeft(getHeading() % 90);
@@ -126,12 +132,8 @@ public class Dummy extends TeamRobot implements Droid
 		}
 		else
 		{
-			if (e.getBearing() > -90 && e.getBearing() < 90) {
-			back(100);
-			} // else he's in back of us, so set ahead a bit.
-			else {
-			ahead(100);
-			}
+			setTurnGunRight(normalizeBearing(e.getBearing() - getGunHeading()));
+			setFire(3);
 		}
 	}
 	public void onCustomEvent(CustomEvent e) {
@@ -172,10 +174,13 @@ public class Dummy extends TeamRobot implements Droid
 
 	public void onHitByBullet (HitByBulletEvent e)
 	{
-		setTurnRight(e.getBearing());
-		setAhead(100);
-		setTurnGunRight(e.getBearing() - getGunHeading());
-		setFire(e.getPower());
+		if(!isLeaderAlive)
+		{
+			setTurnRight(e.getBearing());
+			setAhead(100);
+			setTurnGunRight(normalizeBearing(e.getBearing() - getGunHeading()));
+			setFire(e.getPower());
+		}
 	}
 
 	public Pair calcTiro (double dist, double x, double y)
