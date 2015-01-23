@@ -1,22 +1,33 @@
 package MyRobots;
 import robocode.*;
 import java.awt.geom.Point2D;
+import java.io.IOException;
+import java.util.Locale;
+import java.awt.Color;	
 
 public class TeamLeader extends TeamRobot{
 	private int moveDirection = 1;
+	private int radarDirection = 1;
 	private EnemyBot enemy = new EnemyBot();
 	private Pair par = new Pair();
 	private EnemyBot[] droids = new EnemyBot[4];
-	private droidCount = 4;
+	private int droidCount = 0;
 	private int tooCloseToWall = 0;
 	private int wallMargin = 60;
 	
 	public void run()
 	{
+		setAllColors(Color.BLACK);
 		String[] teammates = getTeammates();
-		for (int i = 0; i < teammates.length; i++)
+		if(teammates != null)
 		{
-			droids[i].setName(teammates[i]);
+			for (int i = 0; i < teammates.length; i++)
+			{
+				droids[i] = new EnemyBot();
+				droids[i].setName(teammates[i]);
+				out.println(teammates[i]);
+			}
+			droidCount = teammates.length;
 		}
 		setAdjustRadarForGunTurn(true);
 		setAdjustGunForRobotTurn(true);
@@ -39,6 +50,8 @@ public class TeamLeader extends TeamRobot{
 		while(true)
 		{
 			doRadar();
+			if(!enemy.none())
+				System.out.println("Enemy: " + enemy.getName() + "\n");
 			if(droidCount > 0)
 			{
 				doGun();
@@ -54,20 +67,22 @@ public class TeamLeader extends TeamRobot{
 	}
 	//calcula o firePower, o ângulo de tiro e o bearing do inimigo
 	//parâmetros: distância do inimigo, e posição do robô
-	public void calcTiro (double dist, double x, double y)
+	public Pair calcTiro (double dist, double x, double y)
 	{
+		Pair par = new Pair();
 		// calculate firepower based on distance
-		double firePower = Math.min(500 / enemy.getDistance(), 3);
+		double firePower = Math.min(500 / dist, 3);
 		par.setFirePower(firePower);
 		// calculate speed of bullet
 		double bulletSpeed = 20 - firePower * 3;
 		// distance = rate * time, solved for time
-		long time = (long)(enemy.getDistance() / bulletSpeed);
+		long time = (long)(dist / bulletSpeed);
 
 		// calculate gun turn to predicted x,y location
 		double futureX = enemy.getFutureX(time);
 		double futureY = enemy.getFutureY(time);
 		par.setabsDeg(absoluteBearing(x, y, futureX, futureY));
+		return par;
 		// non-predictive firing can be done like this:
 		//double absDeg = absoluteBearing(getX(), getY(), enemy.getX(), enemy.getY());
 	}
@@ -76,14 +91,24 @@ public class TeamLeader extends TeamRobot{
 	{
 		if (enemy.none())
 				return;
-		String message = NULL;
+
+		String message = null;
 		for( int i = 0; i<4 ; i++)
 		{
-			calcTiro(Point2D.distance(droids[i].getx(), droids[i].gety(), enemy.getx(), enemy.gety()), droids[i].getx, droids[i].gety);
-			sendMessage(droids[i].getName(), par);
+			//double dist = Point2D.distance(droids[i].getx(), droids[i].gety(), enemy.getx(), enemy.gety());
+			//Pair par = calcTiro(dist, droids[i].getx(), droids[i].gety());
+			try{
+				message = String.format(Locale.US, "%f@%f@%f@%f", enemy.getx(), enemy.gety(), enemy.getHeading(), enemy.getVelocity());
+				System.out.println(message);
+				sendMessage(droids[i].getName(), message);
+			}catch(IOException ev)
+			{
+				System.out.println("Message not sent");
+			}
 		}
+
 		// turn the gun to the predicted x,y location
-		calcTiro(enemy.getDistance(), getX(), getY());
+		Pair par = calcTiro(enemy.getDistance(), getX(), getY());
 		setTurnGunRight(normalizeBearing(par.getabsDeg() - getGunHeading()));
 
 		// if the gun is cool and we're pointed in the right direction, shoot!
@@ -92,14 +117,14 @@ public class TeamLeader extends TeamRobot{
 			tiroFatal();
 		}
 		if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10 && enemy.getDistance() < 300) {
-			setFire(firePower);
+			setFire(par.getFirePower());
 		}
 	}
 	public void doGun2()
 	{
 		if (enemy.none())
 				return;
-		calcTiro(enemy.getDistance(), getX(), getY());
+		Pair par = calcTiro(enemy.getDistance(), getX(), getY());
 		setTurnGunRight(normalizeBearing(par.getabsDeg() - getGunHeading()));
 
 		// if the gun is cool and we're pointed in the right direction, shoot!
@@ -108,14 +133,16 @@ public class TeamLeader extends TeamRobot{
 			tiroFatal();
 		}
 		if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10) {
-			setFire(firePower);
+			setFire(par.getFirePower());
 		}
 	}
 	public void doTank()
 	{
-		setTurnRight(enemy.getBearing() + 90);
+		setTurnRight(normalizeBearing(enemy.getBearing() + 90 - (15 * moveDirection)));
+		/*setTurnRight(enemy.getBearing() + 90);
 
-	// strafe by changing direction every 20 ticks
+		//strafe by changing direction every 20 ticks
+		*/
 		if (getTime() % 20 == 0) {
 			moveDirection *= -1;
 			setAhead(150 * moveDirection);
@@ -147,6 +174,14 @@ public class TeamLeader extends TeamRobot{
 	}
 	public void doRadar()
 	{
+		/*if(enemy.none())
+			setTurnRadarRight(360);
+		else{
+			double turn = getHeading() - getRadarHeading() + enemy.getBearing();
+			turn += 30 * radarDirection;
+			setTurnRadarRight(normalizeBearing(turn));
+			radarDirection *= -1;
+		}*/
 		setTurnRadarRight(360);
 	}
 
@@ -154,19 +189,18 @@ public class TeamLeader extends TeamRobot{
 	{
 		if((enemy.none() || e.getDistance() < enemy.getDistance() - 70 || e.getName().equals(enemy.getName())) && !isTeammate(e.getName()))
 		{
-			enemy.udpate(e, this);
+			enemy.update(e, this);
 		}
-		else
+		else if (droidCount > 0)
 		{
 			for (int i = 0; i < droids.length; i++)
 			{
-				if ((droids[i].getName).equals(e.getName())){
+				if ((droids[i].getName()).equals(e.getName())){
 					droids[i].update(e, this);
 					break;
 				}
 			}
 		}
-
 	}
 
 	public void onRobotDeath(RobotDeathEvent e)
@@ -226,5 +260,4 @@ public class TeamLeader extends TeamRobot{
 //	tiroFatal(e.getEnergy);
 //} else {
 //	fire(2);
-} 
 } 

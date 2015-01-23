@@ -14,7 +14,7 @@ public class EnemyBot {
   private double distance = 0;
   private double energy = 0;
   private double heading = 0;
-  private String name = null;
+  private String name;
   private double velocity = 0;
   private double x = 0;
   private double y = 0;

@@ -1,10 +1,10 @@
 package MyRobots;
 import robocode.*;
+import java.io.IOException;
 
 public class Pair implements java.io.Serializable{
 	private double firePower;
 	private double absDeg;
-	private String droidName;
 	public double getFirePower()
 	{
 		return firePower;
@@ -12,10 +12,6 @@ public class Pair implements java.io.Serializable{
 	public double getabsDeg()
 	{
 		return absDeg;
-	}
-	public String getDroidName()
-	{
-		return droidName;
 	}
 	public void setFirePower(double firePower)
 	{
@@ -25,8 +21,16 @@ public class Pair implements java.io.Serializable{
 	{
 		this.absDeg = absDeg;
 	}
-	public void setdroidName(String name)
-	{
-		droidName = name;
-	}
+
+	private void writeObject(java.io.ObjectOutputStream stream)
+            throws IOException {
+        stream.writeObject(firePower);
+        stream.writeDouble(absDeg);
+    }
+
+    private void readObject(java.io.ObjectInputStream stream)
+            throws IOException, ClassNotFoundException {
+        firePower = stream.readDouble();
+        absDeg = stream.readDouble();
+    }
 }

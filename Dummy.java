@@ -1,18 +1,30 @@
 package MyRobots;
 import robocode.*;
+import java.awt.geom.Point2D;
+import java.util.StringTokenizer;
+import java.util.Locale;
+import java.awt.Color;
 
 public class Dummy extends TeamRobot implements Droid
 {
 	private int moveDirection = 1;
+	private double enemyVelocity = 0;
+	private double enemyHeading = 0;
 	private double enemyBearing = 0;
+	private double enemyDistance = 0;
+	private double enemyX = 0;
+	private double enemyY = 0;
 	private double firePower = 0;
 	private boolean isLeaderAlive = true; 
 	private int tooCloseToWall = 0;
 	private int wallMargin = 60;
 	private boolean goToWall = false;
 	private String leaderName = null;
+
+	private boolean lockon = false;
 	public void run()
 	{
+		setAllColors(Color.BLACK);
 		setAdjustGunForRobotTurn(true);
 		addCustomEvent(new Condition("too_close_to_walls") {
 			public boolean test() {
@@ -30,15 +42,16 @@ public class Dummy extends TeamRobot implements Droid
 				});
 		while(true)
 		{
-			if(isLeaderAlive)
+			System.out.println("EnemyDistance:" + enemyDistance + "\nEnemyBearing: " + enemyBearing + "\nFirePower: " + firePower+"\n");
+			if(!isLeaderAlive || getTeammates() == null)
 			{
-				doGun1();
-				doTank1();
+				//doGun2();
+				doTank2();
 			}
 			else
 			{
-				doGun2();
-				doTank2();
+				doGun1();
+				doTank1();
 			}
 			execute();
 		}
@@ -46,10 +59,14 @@ public class Dummy extends TeamRobot implements Droid
 
 	public void doGun1()
 	{
+		enemyDistance = Point2D.distance(getX(), getY(), enemyX, enemyY);
+		Pair par = calcTiro(enemyDistance, getX(), getY());
+		enemyBearing = par.getabsDeg();
+		firePower = par.getFirePower();
 		if(enemyBearing > 0)
 		{
 			setTurnGunRight(normalizeBearing(enemyBearing - getGunHeading()));
-			if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10)
+			if (getGunHeat() == 0 && Math.abs(getGunTurnRemaining()) < 10 && enemyDistance < 1000/3)
 				setFire(firePower);
 		}
 		else
@@ -58,14 +75,20 @@ public class Dummy extends TeamRobot implements Droid
 
 	public void doGun2()
 	{
-		if(getTime() % 50 == 0)
-		{
-			fire(2);
-		}
+		//setTurnGunRight(enemyBearing);
+		setFire(firePower);
 	}
 	public void doTank1()
 	{
-		setTurnRight(normalizeBearing(enemyBearing + 90 - (15 * moveDirection)));
+		//setTurnRight(normalizeBearing(enemyBearing + 90 - (15 * moveDirection)));
+		if(!lockon)
+			setTurnRight(enemyBearing);
+		
+		if (enemyDistance > 200)
+			setAhead(enemyDistance / 3);
+		// but not too close
+		if (enemyDistance < 100)
+			setBack(enemyDistance);
 
 	// if we're close to the wall, eventually, we'll move away
 		if (tooCloseToWall > 0) tooCloseToWall--;
@@ -80,15 +103,19 @@ public class Dummy extends TeamRobot implements Droid
 
 	public void doTank2()
 	{
+		setTurnRight(90);
+		setAhead(100);
+		/*double moveAmount = Math.max(getBattleFieldWidth(), getBattleFieldHeight());
 		if(goToWall){
-			double moveAmount = Math.max(getBattleFieldWidth(), getBattleFieldHeight());
 			turnLeft(getHeading() % 90);
 			ahead(moveAmount);
 			turnRight(90);
+			turnGunRight(90 - getGunHeading());
 			goToWall = false;
 		}
 		ahead(moveAmount);
 		turnRight(90);
+		turnGunRight(90);*/
 	}
 
 	public void onHitRobot(HitRobotEvent e) {
@@ -110,7 +137,7 @@ public class Dummy extends TeamRobot implements Droid
 	public void onCustomEvent(CustomEvent e) {
 		if (e.getCondition().getName().equals("too_close_to_walls"))
 		{
-			if (tooCloseToWall <= 0) {
+			if (tooCloseToWall <= 0 && !(!isLeaderAlive || getTeammates() == null)) {
 				// if we weren't already dealing with the walls, we are now
 				tooCloseToWall += wallMargin;
 				setMaxVelocity(0); // stop!!!
@@ -121,17 +148,56 @@ public class Dummy extends TeamRobot implements Droid
 	public void onMessageReceived(MessageEvent e)
 	{
 		leaderName = e.getSender();
-		enemyBearing = e.getMessage().getabsDeg();
-		firePower = e.getMessage().getFirePower();
+		String msg = (String)e.getMessage();
+		//System.out.println(msg);
+		StringTokenizer st = new StringTokenizer(msg, "@");
+		enemyX = Double.parseDouble(st.nextToken());
+		enemyY = Double.parseDouble(st.nextToken());
+		enemyHeading = Double.parseDouble(st.nextToken());
+		enemyVelocity = Double.parseDouble(st.nextToken());
+		/*enemyBearing = Double.parseDouble(st.nextToken());
+		firePower = Double.parseDouble(st.nextToken());
+		enemyDistance = Double.parseDouble(st.nextToken());*/
 	}
 
 	public void onRobotDeath(RobotDeathEvent e)
 	{
-		if (e.getName().equals(leaderName))
+		if (e.getName().equals(leaderName)){
 			isLeaderAlive = false;
+			goToWall = true;
+		}
 		else
 			return;
 	}
+
+	public void onHitByBullet (HitByBulletEvent e)
+	{
+		setTurnRight(e.getBearing());
+		setAhead(100);
+		setTurnGunRight(e.getBearing() - getGunHeading());
+		setFire(e.getPower());
+	}
+
+	public Pair calcTiro (double dist, double x, double y)
+	{
+		Pair par = new Pair();
+		// calculate firepower based on distance
+		double firePower = Math.min(500 / dist, 3);
+		par.setFirePower(firePower);
+		// calculate speed of bullet
+		double bulletSpeed = 20 - firePower * 3;
+		// distance = rate * time, solved for time
+		long time = (long)(dist / bulletSpeed);
+
+		// calculate gun turn to predicted x,y location
+		double futureX = enemyX + Math.sin(Math.toRadians(enemyHeading)) * enemyVelocity * time;
+		double futureY = enemyY + Math.cos(Math.toRadians(enemyHeading)) * enemyVelocity * time;
+		par.setabsDeg(absoluteBearing(x, y, futureX, futureY));
+		return par;
+		// non-predictive firing can be done like this:
+		//double absDeg = absoluteBearing(getX(), getY(), enemy.getX(), enemy.getY());
+	}
+
 	public double absoluteBearing(double x1, double y1, double x2, double y2) {
 		double xo = x2-x1;
 		double yo = y2-y1;
@@ -157,10 +223,6 @@ public class Dummy extends TeamRobot implements Droid
 		while (angle >  180) angle -= 360;
 		while (angle < -180) angle += 360;
 		return angle;
-	}
-	public void tiroFatal() {
-	double tiro = (enemy.getEnergy() / 4) + .1;
-	fire(tiro);
 	}
 }
 

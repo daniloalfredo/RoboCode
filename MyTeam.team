@@ -1,0 +1,6 @@
+#Robocode robot team
+#Fri Jan 23 12:56:09 GMT-03:00 2015
+team.members=MyRobots.Dummy*,MyRobots.Dummy*,MyRobots.Dummy*,MyRobots.Dummy*,MyRobots.TeamLeader*
+team.author.name=
+robocode.version=1.9.2.3
+team.description=1 AdvancedBot, 4 Droids
